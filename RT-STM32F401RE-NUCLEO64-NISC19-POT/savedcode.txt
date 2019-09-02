@@ -1,0 +1,89 @@
+/*===========================================================================*/
+/* ADC related code                                                          */
+/*===========================================================================*/
+/*
+ * In this demo we want to use a single channel to sample voltage across
+ * the potentiometer.
+ */
+#define MY_NUM_CH                                              1
+#define MY_SAMPLING_NUMBER                                    10
+
+static adcsample_t sample_buff[MY_NUM_CH * MY_SAMPLING_NUMBER];
+
+/*
+ * ADC conversion group.
+ * Mode:        Linear buffer, 10 samples of 1 channel, SW triggered.
+ * Channels:    IN0.
+ */
+static const ADCConversionGroup my_conversion_group = {
+  FALSE,                            /* NOT CIRCULAR */
+  MY_NUM_CH,                        /* NUMB OF CH */
+  NULL,                             /* NO ADC CALLBACK */
+  NULL,                             /* NO ADC ERROR CALLBACK */
+  0,                                /* CR1 */
+  ADC_CR2_SWSTART,                  /* CR2 */
+  0,                                /* SMPR1 */
+  ADC_SMPR2_SMP_AN0(ADC_SAMPLE_144),/* SMPR2 */
+  0,                                /* HTR */
+  0,                                /* LTR */
+  ADC_SQR1_NUM_CH(MY_NUM_CH),       /* SQR1 */
+  0,                                /* SQR2 */
+  ADC_SQR3_SQ1_N(ADC_CHANNEL_IN0)   /* SQR3 */
+};
+
+
+
+
+
+/*===========================================================================*/
+/*  end of definitions  from demo 18                                         */
+/*===========================================================================*/
+
+
+/*===========================================================================*/
+/*  thread from   from demo 18                                         */
+/*===========================================================================*/
+static THD_WORKING_AREA(waThd3, 512);
+static THD_FUNCTION(Thd3, arg) {
+  unsigned ii;
+  (void) arg;
+  chRegSetThreadName("ADC handler");
+
+  /*
+   * Setting up analog inputs used by the demo.
+   */
+  palSetPadMode(GPIOA, 0, PAL_MODE_INPUT_ANALOG);
+
+  /*
+   * Activates the ADC1 driver.
+   */
+  adcStart(&ADCD1, NULL);
+  while(!chThdShouldTerminateX()) {
+
+    adcConvert(&ADCD1, &my_conversion_group, sample_buff, MY_SAMPLING_NUMBER);
+
+    /* Making mean of sampled values. Note that samples refers to OTA and OTB
+       but since they we are looking for Rcm (common mode) we can make a simple
+       mean */
+    mean = 0;
+    for (ii = 0; ii < MY_NUM_CH * MY_SAMPLING_NUMBER; ii++) {
+      mean += sample_buff[ii];
+    }
+    mean /= MY_NUM_CH * MY_SAMPLING_NUMBER;
+    lastvalue = ((float)mean) * 100.0 / 4095.0;
+    flag = TRUE;
+
+    chThdSleepMilliseconds(10);
+     }
+  chThdExit(0);
+
+}
+
+
+
+
+
+
+/*===========================================================================*/
+/*  end of thread from   from demo 18                                        */
+/*===========================================================================*/
